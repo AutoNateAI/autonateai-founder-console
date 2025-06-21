@@ -5,6 +5,8 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  // Only use the GitHub Pages base path in production mode
+  base: mode === 'production' ? "/autonateai-founder-console/" : "/",
   server: {
     host: "::",
     port: 8080,

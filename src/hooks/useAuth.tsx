@@ -73,6 +73,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const checkAdminRole = async (userId: string) => {
     try {
       console.log('Checking admin role for user:', userId);
+      
+      // First check if we have a cached admin status
+      const cachedAdminStatus = localStorage.getItem('user.isAdmin');
+      if (cachedAdminStatus === 'true') {
+        setIsAdmin(true);
+        console.log('User is admin (from cache)');
+        setLoading(false);
+        return;
+      }
+      
+      // If not in cache or cache is false, check from the database
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
@@ -84,14 +95,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       if (!error && data) {
         setIsAdmin(true);
+        // Store admin status in localStorage
+        localStorage.setItem('user.isAdmin', 'true');
         console.log('User is admin');
       } else {
         setIsAdmin(false);
+        // Clear admin status from localStorage
+        localStorage.setItem('user.isAdmin', 'false');
         console.log('User is not admin');
       }
     } catch (error) {
       console.error('Error checking admin role:', error);
       setIsAdmin(false);
+      localStorage.setItem('user.isAdmin', 'false');
     } finally {
       // Always set loading to false after checking admin role
       setLoading(false);
@@ -110,6 +126,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     localStorage.removeItem('supabase.auth.token');
+    localStorage.removeItem('user.isAdmin'); // Clear admin status from localStorage
     setIsAdmin(false);
     
     if (error) throw error;
