@@ -3,13 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Plus, Download, Edit, Trash2, Eye, Search, Filter } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { ArrowLeft, Plus, Download, Edit, Trash2, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
 
 interface Lead {
   lead_id: string;
@@ -42,238 +40,158 @@ const LeadManagement = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-  const [isAddingLead, setIsAddingLead] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
 
-  // Load leads from localStorage on component mount
+  const [formData, setFormData] = useState({
+    shop_name: '',
+    shop_url: '',
+    total_sales: 0,
+    years_on_etsy: 0,
+    niche: '',
+    average_price_point: 0,
+    platform: '',
+    handle: '',
+    followers: 0,
+    contact_name: '',
+    contact_role: '',
+    pain_points: '',
+    content_angle: '',
+    notes: ''
+  });
+
   useEffect(() => {
     const savedLeads = localStorage.getItem('leads');
     if (savedLeads) {
-      try {
-        const parsed = JSON.parse(savedLeads);
-        setLeads(parsed);
-      } catch (error) {
-        console.error('Error parsing saved leads:', error);
-      }
+      setLeads(JSON.parse(savedLeads));
     }
   }, []);
 
-  // Save leads to localStorage whenever leads change
-  useEffect(() => {
-    localStorage.setItem('leads', JSON.stringify(leads));
-  }, [leads]);
+  const saveLeads = (newLeads: Lead[]) => {
+    setLeads(newLeads);
+    localStorage.setItem('leads', JSON.stringify(newLeads));
+  };
 
-  const handleAddLead = (leadData: Partial<Lead>) => {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
     const newLead: Lead = {
-      lead_id: `lead-${Date.now()}`,
+      lead_id: editingLead?.lead_id || `etsy-${formData.shop_name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`,
       status: 'Prospect',
       etsy_info: {
-        shop_name: leadData.etsy_info?.shop_name || '',
-        shop_url: leadData.etsy_info?.shop_url || '',
-        total_sales: leadData.etsy_info?.total_sales || 0,
-        years_on_etsy: leadData.etsy_info?.years_on_etsy || 0,
-        niche: leadData.etsy_info?.niche || '',
-        average_price_point: leadData.etsy_info?.average_price_point || 0,
+        shop_name: formData.shop_name,
+        shop_url: formData.shop_url,
+        total_sales: formData.total_sales,
+        years_on_etsy: formData.years_on_etsy,
+        niche: formData.niche,
+        average_price_point: formData.average_price_point,
       },
-      social_media: leadData.social_media || [],
-      contact_points: leadData.contact_points || [],
+      social_media: [{
+        platform: formData.platform,
+        handle: formData.handle,
+        followers: formData.followers,
+      }],
+      contact_points: [{
+        name: formData.contact_name,
+        role: formData.contact_role,
+      }],
       strategic_insights: {
-        hypothesized_pain_points: leadData.strategic_insights?.hypothesized_pain_points || [],
-        content_angle_for_demo: leadData.strategic_insights?.content_angle_for_demo || '',
-        notes: leadData.strategic_insights?.notes || '',
+        hypothesized_pain_points: formData.pain_points.split(',').map(p => p.trim()),
+        content_angle_for_demo: formData.content_angle,
+        notes: formData.notes,
       },
     };
 
-    setLeads([...leads, newLead]);
-    setIsAddingLead(false);
-    toast({
-      title: "Lead Added",
-      description: `${newLead.etsy_info.shop_name} has been added to your pipeline.`,
-    });
+    if (editingLead) {
+      const updatedLeads = leads.map(lead => 
+        lead.lead_id === editingLead.lead_id ? newLead : lead
+      );
+      saveLeads(updatedLeads);
+      toast({
+        title: "Lead Updated",
+        description: "Lead information has been successfully updated.",
+      });
+    } else {
+      saveLeads([...leads, newLead]);
+      toast({
+        title: "Lead Added",
+        description: "New lead has been successfully added to the pipeline.",
+      });
+    }
+
+    resetForm();
   };
 
-  const handleDeleteLead = (leadId: string) => {
-    setLeads(leads.filter(lead => lead.lead_id !== leadId));
+  const resetForm = () => {
+    setFormData({
+      shop_name: '',
+      shop_url: '',
+      total_sales: 0,
+      years_on_etsy: 0,
+      niche: '',
+      average_price_point: 0,
+      platform: '',
+      handle: '',
+      followers: 0,
+      contact_name: '',
+      contact_role: '',
+      pain_points: '',
+      content_angle: '',
+      notes: ''
+    });
+    setShowForm(false);
+    setEditingLead(null);
+  };
+
+  const handleEdit = (lead: Lead) => {
+    setEditingLead(lead);
+    setFormData({
+      shop_name: lead.etsy_info.shop_name,
+      shop_url: lead.etsy_info.shop_url,
+      total_sales: lead.etsy_info.total_sales,
+      years_on_etsy: lead.etsy_info.years_on_etsy,
+      niche: lead.etsy_info.niche,
+      average_price_point: lead.etsy_info.average_price_point,
+      platform: lead.social_media[0]?.platform || '',
+      handle: lead.social_media[0]?.handle || '',
+      followers: lead.social_media[0]?.followers || 0,
+      contact_name: lead.contact_points[0]?.name || '',
+      contact_role: lead.contact_points[0]?.role || '',
+      pain_points: lead.strategic_insights.hypothesized_pain_points.join(', '),
+      content_angle: lead.strategic_insights.content_angle_for_demo,
+      notes: lead.strategic_insights.notes
+    });
+    setShowForm(true);
+  };
+
+  const handleDelete = (leadId: string) => {
+    const updatedLeads = leads.filter(lead => lead.lead_id !== leadId);
+    saveLeads(updatedLeads);
     toast({
       title: "Lead Deleted",
-      description: "Lead has been removed from your pipeline.",
+      description: "Lead has been removed from the pipeline.",
     });
   };
 
-  const handleExportLeads = () => {
-    const dataStr = JSON.stringify({ leads, clients: [] }, null, 2);
+  const downloadJSON = () => {
+    const dataStr = JSON.stringify({ leads }, null, 2);
     const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-    
     const exportFileDefaultName = `leads-export-${new Date().toISOString().split('T')[0]}.json`;
     
     const linkElement = document.createElement('a');
     linkElement.setAttribute('href', dataUri);
     linkElement.setAttribute('download', exportFileDefaultName);
     linkElement.click();
-
+    
     toast({
       title: "Export Complete",
-      description: `${leads.length} leads exported successfully.`,
+      description: "Leads data has been downloaded as JSON file.",
     });
-  };
-
-  const filteredLeads = leads.filter(lead => {
-    const matchesSearch = lead.etsy_info.shop_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         lead.etsy_info.niche.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
-
-  const LeadForm = ({ lead, onSave, onCancel }: { lead?: Lead; onSave: (data: Partial<Lead>) => void; onCancel: () => void }) => {
-    const [formData, setFormData] = useState<Partial<Lead>>(lead || {
-      etsy_info: {},
-      social_media: [{ platform: 'Instagram', handle: '', followers: 0 }],
-      contact_points: [{ name: '', role: 'Owner' }],
-      strategic_insights: { hypothesized_pain_points: [], content_angle_for_demo: '', notes: '' }
-    });
-
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="shop_name">Shop Name</Label>
-            <Input
-              id="shop_name"
-              value={formData.etsy_info?.shop_name || ''}
-              onChange={(e) => setFormData({
-                ...formData,
-                etsy_info: { ...formData.etsy_info, shop_name: e.target.value }
-              })}
-              className="bg-white/10 border-white/20 text-white"
-            />
-          </div>
-          <div>
-            <Label htmlFor="shop_url">Shop URL</Label>
-            <Input
-              id="shop_url"
-              value={formData.etsy_info?.shop_url || ''}
-              onChange={(e) => setFormData({
-                ...formData,
-                etsy_info: { ...formData.etsy_info, shop_url: e.target.value }
-              })}
-              className="bg-white/10 border-white/20 text-white"
-            />
-          </div>
-          <div>
-            <Label htmlFor="niche">Niche</Label>
-            <Input
-              id="niche"
-              value={formData.etsy_info?.niche || ''}
-              onChange={(e) => setFormData({
-                ...formData,
-                etsy_info: { ...formData.etsy_info, niche: e.target.value }
-              })}
-              className="bg-white/10 border-white/20 text-white"
-            />
-          </div>
-          <div>
-            <Label htmlFor="total_sales">Total Sales</Label>
-            <Input
-              id="total_sales"
-              type="number"
-              value={formData.etsy_info?.total_sales || ''}
-              onChange={(e) => setFormData({
-                ...formData,
-                etsy_info: { ...formData.etsy_info, total_sales: parseInt(e.target.value) || 0 }
-              })}
-              className="bg-white/10 border-white/20 text-white"
-            />
-          </div>
-        </div>
-
-        <div>
-          <Label htmlFor="contact_name">Contact Name</Label>
-          <Input
-            id="contact_name"
-            value={formData.contact_points?.[0]?.name || ''}
-            onChange={(e) => {
-              const contacts = formData.contact_points || [{ name: '', role: 'Owner' }];
-              contacts[0] = { ...contacts[0], name: e.target.value };
-              setFormData({ ...formData, contact_points: contacts });
-            }}
-            className="bg-white/10 border-white/20 text-white"
-          />
-        </div>
-
-        <div>
-          <Label htmlFor="instagram_handle">Instagram Handle</Label>
-          <Input
-            id="instagram_handle"
-            value={formData.social_media?.[0]?.handle || ''}
-            onChange={(e) => {
-              const social = formData.social_media || [{ platform: 'Instagram', handle: '', followers: 0 }];
-              social[0] = { ...social[0], handle: e.target.value };
-              setFormData({ ...formData, social_media: social });
-            }}
-            className="bg-white/10 border-white/20 text-white"
-            placeholder="@username"
-          />
-        </div>
-
-        <div>
-          <Label htmlFor="content_angle">Content Angle for Demo</Label>
-          <Textarea
-            id="content_angle"
-            value={formData.strategic_insights?.content_angle_for_demo || ''}
-            onChange={(e) => setFormData({
-              ...formData,
-              strategic_insights: {
-                ...formData.strategic_insights,
-                content_angle_for_demo: e.target.value
-              }
-            })}
-            className="bg-white/10 border-white/20 text-white"
-            rows={3}
-          />
-        </div>
-
-        <div>
-          <Label htmlFor="notes">Strategic Notes</Label>
-          <Textarea
-            id="notes"
-            value={formData.strategic_insights?.notes || ''}
-            onChange={(e) => setFormData({
-              ...formData,
-              strategic_insights: {
-                ...formData.strategic_insights,
-                notes: e.target.value
-              }
-            })}
-            className="bg-white/10 border-white/20 text-white"
-            rows={3}
-          />
-        </div>
-
-        <div className="flex space-x-3">
-          <Button
-            onClick={() => onSave(formData)}
-            className="bg-gradient-to-r from-green-500 to-emerald-500"
-          >
-            Save Lead
-          </Button>
-          <Button
-            onClick={onCancel}
-            variant="outline"
-            className="border-white/20 bg-white/10 text-white hover:bg-white/20"
-          >
-            Cancel
-          </Button>
-        </div>
-      </div>
-    );
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-6xl mx-auto px-6 py-8">
         <div className="mb-8">
           <Button
             onClick={() => navigate('/dashboard')}
@@ -284,236 +202,258 @@ const LeadManagement = () => {
             Back to Dashboard
           </Button>
           
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-white mb-2">Lead Management</h1>
               <p className="text-gray-300">Track and manage your sales pipeline</p>
             </div>
-            <div className="flex space-x-3">
+            <div className="flex space-x-4">
               <Button
-                onClick={handleExportLeads}
-                className="bg-gradient-to-r from-blue-500 to-cyan-500"
+                onClick={downloadJSON}
+                variant="outline"
+                className="border-green-400/50 bg-green-400/10 text-green-300 hover:bg-green-400/20"
               >
                 <Download className="w-4 h-4 mr-2" />
                 Export JSON
               </Button>
               <Button
-                onClick={() => setIsAddingLead(true)}
-                className="bg-gradient-to-r from-green-500 to-emerald-500"
+                onClick={() => setShowForm(true)}
+                className="bg-gradient-to-r from-green-500 to-emerald-500 text-white"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Add Lead
               </Button>
             </div>
           </div>
-
-          {/* Filters */}
-          <div className="flex space-x-4 mb-6">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                placeholder="Search leads..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-white/10 border-white/20 text-white pl-10"
-              />
-            </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-48 bg-white/10 border-white/20 text-white">
-                <Filter className="w-4 h-4 mr-2" />
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="Prospect">Prospect</SelectItem>
-                <SelectItem value="Contacted">Contacted</SelectItem>
-                <SelectItem value="In Conversation">In Conversation</SelectItem>
-                <SelectItem value="Demo Scheduled">Demo Scheduled</SelectItem>
-                <SelectItem value="Closed-Won">Closed-Won</SelectItem>
-                <SelectItem value="Closed-Lost">Closed-Lost</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
         </div>
 
-        {/* Leads Grid */}
+        {showForm && (
+          <Card className="backdrop-blur-xl bg-white/10 border-white/20 mb-8">
+            <CardHeader>
+              <CardTitle className="text-white">
+                {editingLead ? 'Edit Lead' : 'Add New Lead'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-gray-200">Shop Name</Label>
+                    <Input
+                      value={formData.shop_name}
+                      onChange={(e) => setFormData({...formData, shop_name: e.target.value})}
+                      className="bg-white/10 border-white/20 text-white"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-gray-200">Shop URL</Label>
+                    <Input
+                      value={formData.shop_url}
+                      onChange={(e) => setFormData({...formData, shop_url: e.target.value})}
+                      className="bg-white/10 border-white/20 text-white"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-gray-200">Total Sales</Label>
+                    <Input
+                      type="number"
+                      value={formData.total_sales}
+                      onChange={(e) => setFormData({...formData, total_sales: parseInt(e.target.value) || 0})}
+                      className="bg-white/10 border-white/20 text-white"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-gray-200">Years on Etsy</Label>
+                    <Input
+                      type="number"
+                      value={formData.years_on_etsy}
+                      onChange={(e) => setFormData({...formData, years_on_etsy: parseInt(e.target.value) || 0})}
+                      className="bg-white/10 border-white/20 text-white"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-gray-200">Niche</Label>
+                    <Input
+                      value={formData.niche}
+                      onChange={(e) => setFormData({...formData, niche: e.target.value})}
+                      className="bg-white/10 border-white/20 text-white"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-gray-200">Average Price Point</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={formData.average_price_point}
+                      onChange={(e) => setFormData({...formData, average_price_point: parseFloat(e.target.value) || 0})}
+                      className="bg-white/10 border-white/20 text-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label className="text-gray-200">Social Platform</Label>
+                    <Input
+                      value={formData.platform}
+                      onChange={(e) => setFormData({...formData, platform: e.target.value})}
+                      className="bg-white/10 border-white/20 text-white"
+                      placeholder="Instagram"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-gray-200">Handle</Label>
+                    <Input
+                      value={formData.handle}
+                      onChange={(e) => setFormData({...formData, handle: e.target.value})}
+                      className="bg-white/10 border-white/20 text-white"
+                      placeholder="@username"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-gray-200">Followers</Label>
+                    <Input
+                      type="number"
+                      value={formData.followers}
+                      onChange={(e) => setFormData({...formData, followers: parseInt(e.target.value) || 0})}
+                      className="bg-white/10 border-white/20 text-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-gray-200">Contact Name</Label>
+                    <Input
+                      value={formData.contact_name}
+                      onChange={(e) => setFormData({...formData, contact_name: e.target.value})}
+                      className="bg-white/10 border-white/20 text-white"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-gray-200">Contact Role</Label>
+                    <Input
+                      value={formData.contact_role}
+                      onChange={(e) => setFormData({...formData, contact_role: e.target.value})}
+                      className="bg-white/10 border-white/20 text-white"
+                      placeholder="Owner/Creator"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-gray-200">Pain Points (comma-separated)</Label>
+                  <Textarea
+                    value={formData.pain_points}
+                    onChange={(e) => setFormData({...formData, pain_points: e.target.value})}
+                    className="bg-white/10 border-white/20 text-white"
+                    rows={3}
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-gray-200">Content Angle for Demo</Label>
+                  <Textarea
+                    value={formData.content_angle}
+                    onChange={(e) => setFormData({...formData, content_angle: e.target.value})}
+                    className="bg-white/10 border-white/20 text-white"
+                    rows={3}
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-gray-200">Notes</Label>
+                  <Textarea
+                    value={formData.notes}
+                    onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                    className="bg-white/10 border-white/20 text-white"
+                    rows={3}
+                  />
+                </div>
+
+                <div className="flex space-x-4">
+                  <Button type="submit" className="bg-gradient-to-r from-green-500 to-emerald-500">
+                    {editingLead ? 'Update Lead' : 'Add Lead'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={resetForm}
+                    className="border-white/20 text-white hover:bg-white/10"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredLeads.map((lead) => (
-            <Card 
-              key={lead.lead_id}
-              className="backdrop-blur-xl bg-white/10 border-white/20 hover:bg-white/15 transition-all duration-300"
-            >
+          {leads.map((lead) => (
+            <Card key={lead.lead_id} className="backdrop-blur-xl bg-white/10 border-white/20 hover:bg-white/15 transition-all duration-300">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-white text-lg">
-                    {lead.etsy_info.shop_name}
-                  </CardTitle>
-                  <span className={`text-xs px-2 py-1 rounded-full ${
-                    lead.status === 'Closed-Won' ? 'bg-green-500/20 text-green-300' :
-                    lead.status === 'In Conversation' ? 'bg-blue-500/20 text-blue-300' :
-                    lead.status === 'Contacted' ? 'bg-yellow-500/20 text-yellow-300' :
-                    'bg-gray-500/20 text-gray-300'
-                  }`}>
+                  <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center">
+                    <Users className="w-5 h-5 text-white" />
+                  </div>
+                  <span className="text-xs px-2 py-1 bg-white/20 text-gray-200 rounded-full">
                     {lead.status}
                   </span>
                 </div>
+                <CardTitle className="text-white">{lead.etsy_info.shop_name}</CardTitle>
                 <CardDescription className="text-gray-300">
                   {lead.etsy_info.niche} • {lead.etsy_info.total_sales} sales
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  <div className="text-sm text-gray-300">
-                    <strong>Contact:</strong> {lead.contact_points[0]?.name || 'N/A'}
-                  </div>
-                  {lead.social_media[0]?.handle && (
-                    <div className="text-sm text-gray-300">
-                      <strong>Instagram:</strong> {lead.social_media[0].handle}
-                    </div>
-                  )}
-                  <div className="flex space-x-2">
-                    <Button
-                      size="sm"
-                      onClick={() => setSelectedLead(lead)}
-                      className="bg-gradient-to-r from-blue-500 to-cyan-500 flex-1"
-                    >
-                      <Eye className="w-4 h-4 mr-1" />
-                      View
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => setEditingLead(lead)}
-                      className="bg-gradient-to-r from-purple-500 to-pink-500"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => handleDeleteLead(lead.lead_id)}
-                      className="bg-gradient-to-r from-red-500 to-pink-500"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
+                <div className="space-y-2 text-sm text-gray-300 mb-4">
+                  <p><strong>Years on Etsy:</strong> {lead.etsy_info.years_on_etsy}</p>
+                  <p><strong>Avg Price:</strong> ${lead.etsy_info.average_price_point}</p>
+                  <p><strong>Social:</strong> {lead.social_media[0]?.platform} ({lead.social_media[0]?.followers} followers)</p>
+                  <p><strong>Contact:</strong> {lead.contact_points[0]?.name}</p>
+                </div>
+                <div className="flex space-x-2">
+                  <Button
+                    size="sm"
+                    onClick={() => handleEdit(lead)}
+                    className="flex-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border-blue-400/50"
+                  >
+                    <Edit className="w-3 h-3 mr-1" />
+                    Edit
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handleDelete(lead.lead_id)}
+                    className="flex-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 border-red-400/50"
+                  >
+                    <Trash2 className="w-3 h-3 mr-1" />
+                    Delete
+                  </Button>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
 
-        {leads.length === 0 && (
-          <Card className="backdrop-blur-xl bg-white/10 border-white/20 text-center py-12">
-            <CardContent>
-              <div className="text-gray-300">
-                <Plus className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <h3 className="text-lg font-semibold mb-2">No leads yet</h3>
-                <p className="mb-4">Start building your pipeline by adding your first lead.</p>
-                <Button
-                  onClick={() => setIsAddingLead(true)}
-                  className="bg-gradient-to-r from-green-500 to-emerald-500"
-                >
-                  Add Your First Lead
-                </Button>
-              </div>
+        {leads.length === 0 && !showForm && (
+          <Card className="backdrop-blur-xl bg-white/10 border-white/20">
+            <CardContent className="text-center py-12">
+              <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-white mb-2">No Leads Yet</h3>
+              <p className="text-gray-300 mb-6">Start building your pipeline by adding your first lead</p>
+              <Button
+                onClick={() => setShowForm(true)}
+                className="bg-gradient-to-r from-green-500 to-emerald-500"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add First Lead
+              </Button>
             </CardContent>
           </Card>
         )}
-
-        {/* Add Lead Dialog */}
-        <Dialog open={isAddingLead} onOpenChange={setIsAddingLead}>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto backdrop-blur-xl bg-slate-900/90 border-white/20 text-white">
-            <DialogHeader>
-              <DialogTitle>Add New Lead</DialogTitle>
-              <DialogDescription className="text-gray-300">
-                Add a new potential client to your pipeline
-              </DialogDescription>
-            </DialogHeader>
-            <LeadForm 
-              onSave={handleAddLead}
-              onCancel={() => setIsAddingLead(false)}
-            />
-          </DialogContent>
-        </Dialog>
-
-        {/* Edit Lead Dialog */}
-        <Dialog open={!!editingLead} onOpenChange={() => setEditingLead(null)}>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto backdrop-blur-xl bg-slate-900/90 border-white/20 text-white">
-            <DialogHeader>
-              <DialogTitle>Edit Lead</DialogTitle>
-              <DialogDescription className="text-gray-300">
-                Update lead information
-              </DialogDescription>
-            </DialogHeader>
-            {editingLead && (
-              <LeadForm 
-                lead={editingLead}
-                onSave={(data) => {
-                  const updatedLeads = leads.map(lead => 
-                    lead.lead_id === editingLead.lead_id 
-                      ? { ...lead, ...data } as Lead
-                      : lead
-                  );
-                  setLeads(updatedLeads);
-                  setEditingLead(null);
-                  toast({
-                    title: "Lead Updated",
-                    description: "Lead information has been updated successfully.",
-                  });
-                }}
-                onCancel={() => setEditingLead(null)}
-              />
-            )}
-          </DialogContent>
-        </Dialog>
-
-        {/* View Lead Dialog */}
-        <Dialog open={!!selectedLead} onOpenChange={() => setSelectedLead(null)}>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto backdrop-blur-xl bg-slate-900/90 border-white/20 text-white">
-            <DialogHeader>
-              <DialogTitle>{selectedLead?.etsy_info.shop_name}</DialogTitle>
-              <DialogDescription className="text-gray-300">
-                Complete lead profile and insights
-              </DialogDescription>
-            </DialogHeader>
-            {selectedLead && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <h4 className="font-semibold text-gray-200 mb-2">Etsy Information</h4>
-                    <div className="space-y-1 text-sm text-gray-300">
-                      <p><strong>Shop:</strong> {selectedLead.etsy_info.shop_name}</p>
-                      <p><strong>Niche:</strong> {selectedLead.etsy_info.niche}</p>
-                      <p><strong>Sales:</strong> {selectedLead.etsy_info.total_sales}</p>
-                      <p><strong>Years on Etsy:</strong> {selectedLead.etsy_info.years_on_etsy}</p>
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-gray-200 mb-2">Contact Information</h4>
-                    <div className="space-y-1 text-sm text-gray-300">
-                      <p><strong>Name:</strong> {selectedLead.contact_points[0]?.name || 'N/A'}</p>
-                      <p><strong>Role:</strong> {selectedLead.contact_points[0]?.role || 'N/A'}</p>
-                      {selectedLead.social_media[0]?.handle && (
-                        <p><strong>Instagram:</strong> {selectedLead.social_media[0].handle}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                {selectedLead.strategic_insights.content_angle_for_demo && (
-                  <div>
-                    <h4 className="font-semibold text-gray-200 mb-2">Content Angle</h4>
-                    <p className="text-sm text-gray-300">{selectedLead.strategic_insights.content_angle_for_demo}</p>
-                  </div>
-                )}
-                {selectedLead.strategic_insights.notes && (
-                  <div>
-                    <h4 className="font-semibold text-gray-200 mb-2">Strategic Notes</h4>
-                    <p className="text-sm text-gray-300">{selectedLead.strategic_insights.notes}</p>
-                  </div>
-                )}
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
       </div>
     </div>
   );
