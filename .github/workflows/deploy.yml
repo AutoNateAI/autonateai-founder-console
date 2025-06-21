@@ -37,6 +37,17 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          # Ensure we're building for production
+          NODE_ENV: production
+
+      # Create a 404.html file that's identical to index.html for SPA routing
+      - name: Create 404 page for SPA routing
+        run: cp dist/index.html dist/404.html
+
+      # Create empty .nojekyll file to prevent Jekyll processing
+      - name: Add .nojekyll file
+        run: touch dist/.nojekyll
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
