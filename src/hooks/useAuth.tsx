@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
@@ -23,17 +24,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    let isMounted = true;
+
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!isMounted) return;
+      
       console.log('Initial session:', !!session);
       setSession(session);
       setUser(session?.user ?? null);
       
       if (session?.user) {
         localStorage.setItem('supabase.auth.token', JSON.stringify(session));
-        checkAdminRole(session.user.id);
+        await checkAdminRole(session.user.id);
       } else {
         localStorage.removeItem('supabase.auth.token');
+        setIsAdmin(false);
         setLoading(false);
       }
     });
@@ -41,6 +47,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!isMounted) return;
+        
         console.log('Auth state change:', event, !!session);
         setSession(session);
         setUser(session?.user ?? null);
@@ -56,7 +64,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const checkAdminRole = async (userId: string) => {
