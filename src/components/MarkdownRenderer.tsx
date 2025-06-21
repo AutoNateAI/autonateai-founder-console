@@ -1,7 +1,6 @@
 
 import React, { useState } from 'react';
-import { Check, ChevronDown, ChevronRight, CheckSquare, Square, TrendingUp, Users, Target, DollarSign, Calendar, Award, Zap } from 'lucide-react';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Check, CheckSquare, Square, TrendingUp, Users, Target, DollarSign, Calendar, Award, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -18,13 +17,6 @@ interface ChecklistItem {
   checked: boolean;
 }
 
-interface Section {
-  id: string;
-  title: string;
-  content: string;
-  expanded: boolean;
-}
-
 interface StatCard {
   title: string;
   value: string;
@@ -39,45 +31,14 @@ interface TableData {
 
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
-  const [sections, setSections] = useState<Section[]>([]);
 
   React.useEffect(() => {
-    // Parse content for interactive elements
+    // Parse content for checklist items
     const lines = content.split('\n');
-    const newSections: Section[] = [];
     const newChecklist: ChecklistItem[] = [];
     
-    let currentSection: Section | null = null;
-    let sectionContent: string[] = [];
-    
     lines.forEach((line, index) => {
-      // Handle headers
-      if (line.startsWith('## ')) {
-        if (currentSection) {
-          currentSection.content = sectionContent.join('\n');
-          newSections.push(currentSection);
-        }
-        currentSection = {
-          id: `section-${index}`,
-          title: line.replace('## ', ''),
-          content: '',
-          expanded: index < 3 // First 3 sections expanded by default
-        };
-        sectionContent = [];
-      } else if (line.startsWith('### ')) {
-        if (currentSection) {
-          currentSection.content = sectionContent.join('\n');
-          newSections.push(currentSection);
-        }
-        currentSection = {
-          id: `section-${index}`,
-          title: line.replace('### ', ''),
-          content: '',
-          expanded: false
-        };
-        sectionContent = [];
-      } else if (line.match(/^[\s]*[-*]\s/)) {
-        // Handle checklist items
+      if (line.match(/^[\s]*[-*]\s/) && !line.includes('|')) {
         const checklistId = `check-${index}`;
         const text = line.replace(/^[\s]*[-*]\s/, '');
         newChecklist.push({
@@ -85,30 +46,15 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
           text,
           checked: false
         });
-        sectionContent.push(`CHECKLIST_ITEM:${checklistId}`);
-      } else {
-        sectionContent.push(line);
       }
     });
     
-    if (currentSection) {
-      currentSection.content = sectionContent.join('\n');
-      newSections.push(currentSection);
-    }
-    
-    setSections(newSections);
     setChecklist(newChecklist);
   }, [content]);
 
   const toggleChecklistItem = (id: string) => {
     setChecklist(prev => prev.map(item => 
       item.id === id ? { ...item, checked: !item.checked } : item
-    ));
-  };
-
-  const toggleSection = (id: string) => {
-    setSections(prev => prev.map(section => 
-      section.id === id ? { ...section, expanded: !section.expanded } : section
     ));
   };
 
@@ -162,7 +108,6 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
   };
 
   const generateChartData = (sectionTitle: string) => {
-    // Generate sample data based on section content
     if (sectionTitle.toLowerCase().includes('profit') || sectionTitle.toLowerCase().includes('revenue')) {
       return [
         { month: 'Month 1', revenue: 4500, profit: 2000 },
@@ -237,15 +182,17 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
     return null;
   };
 
-  const renderContent = (text: string, sectionTitle: string = '') => {
-    const lines = text.split('\n');
+  const renderContent = () => {
+    const lines = content.split('\n');
     const elements: React.ReactNode[] = [];
+    let currentSection = '';
+    let checklistIndex = 0;
     
-    // Check for stat cards
-    const stats = parseStatCards(text);
+    // Check for overall stats first
+    const stats = parseStatCards(content);
     if (stats.length > 0) {
       elements.push(
-        <div key="stats" className="grid grid-cols-1 md:grid-cols-3 gap-4 my-6">
+        <div key="global-stats" className="grid grid-cols-1 md:grid-cols-3 gap-4 my-8">
           {stats.slice(0, 6).map((stat, index) => {
             const IconComponent = getIconForStat(stat.title);
             return (
@@ -267,27 +214,12 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
         </div>
       );
     }
-    
-    // Check for charts
-    const chartData = generateChartData(sectionTitle);
-    if (chartData) {
-      elements.push(
-        <Card key="chart" className="my-6 bg-white/5 border-white/20">
-          <CardHeader>
-            <CardTitle className="text-white">{sectionTitle} Analytics</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {renderChart(chartData, sectionTitle)}
-          </CardContent>
-        </Card>
-      );
-    }
-    
+
     // Check for tables
-    const tableData = parseTable(text);
+    const tableData = parseTable(content);
     if (tableData) {
       elements.push(
-        <Card key="table" className="my-6 bg-white/5 border-white/20">
+        <Card key="global-table" className="my-8 bg-white/5 border-white/20">
           <CardContent className="p-0">
             <Table>
               <TableHeader>
@@ -312,46 +244,49 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
       );
     }
 
-    // Process remaining content
     lines.forEach((line, index) => {
-      // Handle checklist items
-      if (line.startsWith('CHECKLIST_ITEM:')) {
-        const checkId = line.replace('CHECKLIST_ITEM:', '');
-        const checkItem = checklist.find(item => item.id === checkId);
-        if (!checkItem) return;
-        
-        elements.push(
-          <div key={index} className="flex items-center space-x-3 my-2 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
-               onClick={() => toggleChecklistItem(checkId)}>
-            {checkItem.checked ? (
-              <CheckSquare className="w-5 h-5 text-green-400 flex-shrink-0" />
-            ) : (
-              <Square className="w-5 h-5 text-gray-400 flex-shrink-0" />
-            )}
-            <span className={`${checkItem.checked ? 'line-through text-gray-400' : 'text-gray-200'}`}>
-              {checkItem.text}
-            </span>
-          </div>
-        );
-        return;
-      }
-      
-      // Skip table lines and stat lines (already processed)
-      if (line.includes('|') || line.includes('**') && (line.includes('$') || line.includes('%'))) return;
-      
       // Handle headers
       if (line.startsWith('# ')) {
-        elements.push(<h1 key={index} className="text-3xl font-bold text-white mb-4 mt-6">{line.replace('# ', '')}</h1>);
+        elements.push(
+          <div key={index} className="my-8">
+            <h1 className="text-4xl font-bold text-white mb-4">{line.replace('# ', '')}</h1>
+          </div>
+        );
       } else if (line.startsWith('## ')) {
-        elements.push(<h2 key={index} className="text-2xl font-semibold text-white mb-3 mt-5">{line.replace('## ', '')}</h2>);
+        currentSection = line.replace('## ', '');
+        
+        // Add chart for this section if applicable
+        const chartData = generateChartData(currentSection);
+        if (chartData) {
+          elements.push(
+            <Card key={`chart-${index}`} className="my-6 bg-white/5 border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">{currentSection} Analytics</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {renderChart(chartData, currentSection)}
+              </CardContent>
+            </Card>
+          );
+        }
+        
+        elements.push(
+          <div key={index} className="my-6">
+            <h2 className="text-3xl font-semibold text-white mb-4 pb-2 border-b border-white/20">{currentSection}</h2>
+          </div>
+        );
       } else if (line.startsWith('### ')) {
-        elements.push(<h3 key={index} className="text-xl font-semibold text-white mb-2 mt-4">{line.replace('### ', '')}</h3>);
+        elements.push(
+          <div key={index} className="my-4">
+            <h3 className="text-2xl font-semibold text-white mb-3">{line.replace('### ', '')}</h3>
+          </div>
+        );
       }
       // Handle bold text
       else if (line.includes('**')) {
         const parts = line.split(/(\*\*.*?\*\*)/g);
         elements.push(
-          <p key={index} className="text-gray-200 mb-2 leading-relaxed">
+          <p key={index} className="text-gray-200 mb-3 leading-relaxed text-lg">
             {parts.map((part, i) => 
               part.startsWith('**') && part.endsWith('**') ? (
                 <strong key={i} className="text-white font-semibold">{part.slice(2, -2)}</strong>
@@ -362,65 +297,46 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
           </p>
         );
       }
-      // Handle bullet points
-      else if (line.match(/^[\s]*[-*]\s/) && !line.startsWith('CHECKLIST_ITEM:')) {
-        elements.push(
-          <div key={index} className="flex items-start space-x-2 ml-4 mb-1">
-            <span className="text-cyan-400 mt-2">•</span>
-            <span className="text-gray-200">{line.replace(/^[\s]*[-*]\s/, '')}</span>
-          </div>
-        );
+      // Handle bullet points as checklist items
+      else if (line.match(/^[\s]*[-*]\s/) && !line.includes('|')) {
+        const checkItem = checklist[checklistIndex];
+        if (checkItem) {
+          elements.push(
+            <div key={index} className="flex items-center space-x-3 my-3 p-4 rounded-lg bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
+                 onClick={() => toggleChecklistItem(checkItem.id)}>
+              {checkItem.checked ? (
+                <CheckSquare className="w-5 h-5 text-green-400 flex-shrink-0" />
+              ) : (
+                <Square className="w-5 h-5 text-gray-400 flex-shrink-0" />
+              )}
+              <span className={`${checkItem.checked ? 'line-through text-gray-400' : 'text-gray-200'} text-lg`}>
+                {checkItem.text}
+              </span>
+            </div>
+          );
+          checklistIndex++;
+        }
       }
       // Handle empty lines
       else if (line.trim() === '') {
-        elements.push(<div key={index} className="h-2"></div>);
+        elements.push(<div key={index} className="h-4"></div>);
       }
       // Regular paragraphs
-      else if (line.trim()) {
-        elements.push(<p key={index} className="text-gray-200 mb-2 leading-relaxed">{line}</p>);
+      else if (line.trim() && !line.includes('|')) {
+        elements.push(
+          <p key={index} className="text-gray-200 mb-3 leading-relaxed text-lg">
+            {line}
+          </p>
+        );
       }
     });
 
     return elements;
   };
 
-  if (sections.length === 0) {
-    // Fallback for simple content without sections
-    return (
-      <div className="prose prose-invert max-w-none">
-        {renderContent(content)}
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-4">
-      {sections.map((section) => (
-        <Collapsible
-          key={section.id}
-          open={section.expanded}
-          onOpenChange={() => toggleSection(section.id)}
-        >
-          <CollapsibleTrigger asChild>
-            <Button
-              variant="ghost"
-              className="w-full justify-between p-4 h-auto text-left hover:bg-white/10 border border-white/20 rounded-lg"
-            >
-              <h3 className="text-lg font-semibold text-white">{section.title}</h3>
-              {section.expanded ? (
-                <ChevronDown className="w-5 h-5 text-gray-400" />
-              ) : (
-                <ChevronRight className="w-5 h-5 text-gray-400" />
-              )}
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="pt-4 pl-4 pr-4 pb-2">
-            <div className="prose prose-invert max-w-none">
-              {renderContent(section.content, section.title)}
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-      ))}
+    <div className="space-y-6">
+      {renderContent()}
       
       {checklist.length > 0 && (
         <Card className="mt-8 bg-white/5 border-white/20">
