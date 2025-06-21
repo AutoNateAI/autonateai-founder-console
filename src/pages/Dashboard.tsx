@@ -13,8 +13,11 @@ import {
   TrendingUp, 
   Target,
   Zap,
-  BarChart3
+  BarChart3,
+  User,
+  UserPlus
 } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 interface DashboardModule {
   id: string;
@@ -28,29 +31,17 @@ interface DashboardModule {
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { user, signOut, isAdmin } = useAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
-    // Check authentication
-    const isAuthenticated = localStorage.getItem('isAuthenticated');
-    if (!isAuthenticated) {
-      navigate('/');
-      return;
-    }
-
     // Update time every minute
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 60000);
 
     return () => clearInterval(timer);
-  }, [navigate]);
-
-  const handleLogout = () => {
-    localStorage.removeItem('isAuthenticated');
-    localStorage.removeItem('loginTime');
-    navigate('/');
-  };
+  }, []);
 
   const modules: DashboardModule[] = [
     {
@@ -122,13 +113,31 @@ const Dashboard = () => {
             </div>
             <div className="flex items-center space-x-4">
               <div className="text-right">
-                <p className="text-white font-medium">Welcome, Admin</p>
+                <p className="text-white font-medium">Welcome, {user?.email}</p>
                 <p className="text-gray-300 text-sm">
                   {currentTime.toLocaleDateString()} • {currentTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                 </p>
               </div>
               <Button
-                onClick={handleLogout}
+                onClick={() => navigate('/profile')}
+                variant="outline"
+                className="border-white/20 bg-white/10 text-white hover:bg-white/20 backdrop-blur-sm"
+              >
+                <User className="w-4 h-4 mr-2" />
+                Profile
+              </Button>
+              {isAdmin && (
+                <Button
+                  onClick={() => navigate('/signup')}
+                  variant="outline"
+                  className="border-white/20 bg-white/10 text-white hover:bg-white/20 backdrop-blur-sm"
+                >
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Add User
+                </Button>
+              )}
+              <Button
+                onClick={signOut}
                 variant="outline"
                 className="border-white/20 bg-white/10 text-white hover:bg-white/20 backdrop-blur-sm"
               >

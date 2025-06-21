@@ -4,8 +4,13 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/hooks/useAuth";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import SignUp from "./pages/SignUp";
+import Profile from "./pages/Profile";
 import StrategicDocs from "./pages/StrategicDocs";
 import LeadManagement from "./pages/LeadManagement";
 import NetworkMap from "./pages/NetworkMap";
@@ -21,16 +26,77 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Login />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/strategic-docs" element={<StrategicDocs />} />
-          <Route path="/lead-management" element={<LeadManagement />} />
-          <Route path="/network-map" element={<NetworkMap />} />
-          <Route path="/team-timeline" element={<TeamTimeline />} />
-          <Route path="/kanban-board" element={<KanbanBoard />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/login" element={<Login />} />
+            <Route 
+              path="/dashboard" 
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/signup" 
+              element={
+                <ProtectedRoute adminOnly>
+                  <SignUp />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/profile" 
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/strategic-docs" 
+              element={
+                <ProtectedRoute>
+                  <StrategicDocs />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/lead-management" 
+              element={
+                <ProtectedRoute>
+                  <LeadManagement />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/network-map" 
+              element={
+                <ProtectedRoute>
+                  <NetworkMap />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/team-timeline" 
+              element={
+                <ProtectedRoute>
+                  <TeamTimeline />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/kanban-board" 
+              element={
+                <ProtectedRoute>
+                  <KanbanBoard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
