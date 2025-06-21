@@ -48,10 +48,10 @@ const Index = () => {
 };
 
 const FeatureCard = ({ title, description, icon }: { title: string; description: string; icon: string }) => (
-  <div className="bg-white/5 rounded-lg p-6 border border-white/10 hover:border-purple-500/50 transition-all hover:bg-white/10">
+  <div className="bg-white/5 rounded-lg p-6 border border-white/10 hover:border-purple-500/50 transition-all duration-300 hover:bg-white/10">
     <div className="text-3xl mb-3">{icon}</div>
     <h3 className="text-xl font-semibold text-white mb-2">{title}</h3>
-    <p className="text-white/70">{description}</p>
+    <p className="text-white/70 text-sm leading-relaxed">{description}</p>
   </div>
 );
 
