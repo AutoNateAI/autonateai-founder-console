@@ -3,9 +3,15 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, HashRouter } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+
+// Determine if we're running in production mode
+const isProduction = import.meta.env.MODE === 'production';
+// Use HashRouter for GitHub Pages which is more reliable for SPA on GitHub Pages
+// or use BrowserRouter with the correct base URL in development
+const Router = isProduction ? HashRouter : BrowserRouter;
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -25,7 +31,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <Router>
         <AuthProvider>
           <Routes>
             <Route path="/" element={<Index />} />
@@ -97,7 +103,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
-      </BrowserRouter>
+      </Router>
     </TooltipProvider>
   </QueryClientProvider>
 );
