@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
@@ -26,6 +25,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session:', !!session);
       setSession(session);
       setUser(session?.user ?? null);
       
@@ -34,14 +34,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         checkAdminRole(session.user.id);
       } else {
         localStorage.removeItem('supabase.auth.token');
+        setLoading(false);
       }
-      
-      setLoading(false);
     });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state change:', event, !!session);
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -51,9 +51,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         } else {
           localStorage.removeItem('supabase.auth.token');
           setIsAdmin(false);
+          setLoading(false);
         }
-        
-        setLoading(false);
       }
     );
 
@@ -62,21 +61,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const checkAdminRole = async (userId: string) => {
     try {
+      console.log('Checking admin role for user:', userId);
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
         .eq('role', 'admin')
-        .single();
+        .maybeSingle();
+      
+      console.log('Admin role check result:', { data, error });
       
       if (!error && data) {
         setIsAdmin(true);
+        console.log('User is admin');
       } else {
         setIsAdmin(false);
+        console.log('User is not admin');
       }
     } catch (error) {
       console.error('Error checking admin role:', error);
       setIsAdmin(false);
+    } finally {
+      // Always set loading to false after checking admin role
+      setLoading(false);
     }
   };
 
